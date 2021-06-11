@@ -35,9 +35,8 @@ class Test01(object):
 
         if channel.id == 1:
             print('Master Clock %d is broadcasting stop signal to all clocks.' % channel.id)
-
-        msg_out = Message(channel.id, [], None, None)
-        channel.send(msg_out)
+            msg_out = Message(channel.id, [], None, None)
+            channel.send(msg_out)
 
     @staticmethod
     def run():

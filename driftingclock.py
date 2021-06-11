@@ -4,7 +4,7 @@ from ntplib import NTPClient
 
 class DriftingClock(object):
 
-    NTP_HOSTNAME = 'b.ntp.br'
+    NTP_HOSTNAME = 'gps.ntp.br'
 
     def __init__(self, magnitude=10**(-3), drift=None):
         wall_start = time.time_ns()

@@ -48,7 +48,7 @@ class QueueCommunication(object):
                 if not message.destination:
                     message.destination = filter(lambda x: x != message.source, self.node_queues.keys())
                 for dest in message.destination:
-                    delay = lognormvariate(4.2, 0.25)/1000
+                    delay = (5+lognormvariate(0.8, 0.5))/1000
                     self.scheduler.schedule(delay, self.node_queues[dest].put, argument=(message,))
                     #self.node_queues[dest].put(message) #no delay
         self.scheduler.stop()

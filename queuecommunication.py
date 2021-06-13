@@ -39,7 +39,6 @@ class QueueCommunication(object):
         return node_channel
 
     def loop(self):
-        self.scheduler.start()
         while self.running:
             message = self.queue_in.get()
             if message:
@@ -49,7 +48,6 @@ class QueueCommunication(object):
                     delay = (5+lognormvariate(0.8, 0.5))/1000
                     self.scheduler.schedule(delay, self.node_queues[dest].put, argument=(message,))
                     #self.node_queues[dest].put(message) #no delay
-        self.scheduler.stop()
 
     def start(self):
         self.running = True

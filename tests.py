@@ -58,9 +58,11 @@ class Test01(object):
             thread_list.append(thread)
             thread.start()
 
+        sch.start()
         comm.start()
 
         for thread in thread_list:
             thread.join()
 
         comm.stop()
+        sch.stop()

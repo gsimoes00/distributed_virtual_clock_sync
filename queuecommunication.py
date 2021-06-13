@@ -12,8 +12,8 @@ class QueueChannel(object):
     def send(self, message):
         self.send_queue.put(message)
 
-    def receive(self):
-        return self.receive_queue.get()
+    def receive(self, timeout):
+        return self.receive_queue.get(timeout=timeout/1000)
 
 class QueueCommunication(object):
     

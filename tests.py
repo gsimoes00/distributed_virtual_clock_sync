@@ -15,7 +15,8 @@ class Test01(object):
 
         if channel.id == 1:
             print('Clock %d is the master, sending first message.' % channel.id)
-            msg1 = Message(channel.id, [], 'int', clock.get_time())
+            time = clock.get_time()
+            msg1 = Message(channel.id, [], time, 'int', time)
             channel.send(msg1)
 
         count = 0
@@ -29,14 +30,16 @@ class Test01(object):
                 value = clock.get_time() - msg_in.content
                 print('Clock %d - Clock %d + Delay = %+d' % (channel.id, msg_in.source, value))
 
-                msg_out = Message(channel.id, [msg_in.source], 'int', clock.get_time())
+                time = clock.get_time()
+                msg_out = Message(channel.id, [msg_in.source], time, 'int', time)
                 channel.send(msg_out)
 
         print('Clock %d received 100 messages and stopped.' % channel.id)
 
         if channel.id == 1:
             print('Master Clock %d is broadcasting stop signal to all clocks.' % channel.id)
-            msg_out = Message(channel.id, [], None, None)
+            time = clock.get_time()
+            msg_out = Message(channel.id, [], time, None, None)
             channel.send(msg_out)
 
     @staticmethod

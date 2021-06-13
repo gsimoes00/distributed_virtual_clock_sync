@@ -1,5 +1,5 @@
 from threading import Lock, Thread
-from queue import Queue
+from queue import Empty, Queue
 from random import lognormvariate
 
 class QueueChannel(object):
@@ -13,7 +13,11 @@ class QueueChannel(object):
         self.send_queue.put(message)
 
     def receive(self, timeout):
-        return self.receive_queue.get(timeout=timeout/1000)
+        try:
+            message = self.receive_queue.get(timeout=timeout/1000)
+        except Empty:
+            message = None
+        return message
 
 class QueueCommunication(object):
     

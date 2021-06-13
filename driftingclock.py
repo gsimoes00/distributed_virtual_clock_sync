@@ -1,4 +1,4 @@
-from time import time_ns, perf_counter_ns, strftime, localtime
+from time import time_ns, perf_counter_ns, strftime, localtime, sleep
 from random import betavariate, choice
 from ntplib import NTPClient
 
@@ -19,7 +19,7 @@ class DriftingClock(object):
         self.ntp_client = NTPClient()
         self.ntp_offset = 0
 
-    def get_time(self):
+    def get_time_ms(self):
         perf_counter_current = perf_counter_ns()//1000000
         return (self.wall_start + self.ntp_offset + 
             int(self.drift*(perf_counter_current - self.perf_counter_start)))
@@ -28,6 +28,12 @@ class DriftingClock(object):
         response = self.ntp_client.request(DriftingClock.NTP_HOSTNAME, version=3)
         self.ntp_offset = int(response.offset*1000)
 
+    def sleep_ms(self, duration):
+        sleep((duration/self.drift)/1000)
+
+    def drifted_time_ms(self, duration):
+        return duration/self.drift
+
     @staticmethod
-    def format_time(ms_epoch):
+    def format_time_ms(ms_epoch):
         return strftime("%H:%M:%S.", localtime(ms_epoch//1000)) + str(ms_epoch%1000)

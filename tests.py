@@ -1,9 +1,8 @@
-from sched import scheduler
-from eventscheduler import EventScheduler
 from threading import Thread
 from sys import argv
 
 from driftingclock import DriftingClock
+from eventscheduler import EventScheduler
 from queuecommunication import QueueCommunication
 from message import Message
 

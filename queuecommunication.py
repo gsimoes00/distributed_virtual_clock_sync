@@ -1,7 +1,5 @@
-import queue
 from threading import Lock, Thread
 from queue import Queue
-from eventscheduler import EventScheduler
 from random import lognormvariate
 
 class QueueChannel(object):

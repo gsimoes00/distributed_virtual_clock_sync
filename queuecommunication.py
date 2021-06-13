@@ -19,12 +19,12 @@ class QueueChannel(object):
 
 class QueueCommunication(object):
     
-    def __init__(self):
+    def __init__(self, scheduler):
         self.node_queues = dict()
         self.last_node_id = 0
         self.node_creation_lock = Lock()
         self.queue_in = Queue()
-        self.scheduler = EventScheduler()
+        self.scheduler = scheduler
         self.thread = Thread(target=self.loop, args=())
         self.running = False
 

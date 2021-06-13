@@ -1,3 +1,5 @@
+from sched import scheduler
+from eventscheduler import EventScheduler
 from threading import Thread
 from sys import argv
 
@@ -41,7 +43,8 @@ class Test01(object):
     @staticmethod
     def run():
 
-        comm = QueueCommunication()
+        sch = EventScheduler()
+        comm = QueueCommunication(sch)
 
         num_clocks = 2
         if len(argv) > 1:

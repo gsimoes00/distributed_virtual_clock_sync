@@ -1,11 +1,11 @@
 from sched import scheduler
-from time import monotonic, sleep
+from time import perf_counter, sleep
 from threading import Event, Thread
 
 class EventScheduler(object):
 
     def __init__(self):
-        self.scheduler = scheduler(monotonic, sleep)
+        self.scheduler = scheduler(perf_counter, sleep)
         self.wake_handle = Event()
         self.thread = Thread(target=self.loop, args=())
         self.running = False

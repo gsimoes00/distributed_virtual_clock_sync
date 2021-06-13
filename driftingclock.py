@@ -1,4 +1,4 @@
-import time
+from time import time_ns, perf_counter_ns, strftime, localtime
 from random import betavariate, choice
 from ntplib import NTPClient
 
@@ -7,11 +7,11 @@ class DriftingClock(object):
     NTP_HOSTNAME = 'gps.ntp.br'
 
     def __init__(self, magnitude=10**(-3), drift=None):
-        wall_start = time.time_ns()
-        while time.time_ns() == wall_start:
+        wall_start = time_ns()
+        while time_ns() == wall_start:
             pass
-        self.monotonic_start = time.monotonic_ns()//1000000
-        self.wall_start = int(time.time()*1000)
+        self.perf_counter_start = perf_counter_ns()//1000000
+        self.wall_start = time_ns()//1000000
         if drift:
             self.drift = 1 + drift
         else:
@@ -20,9 +20,9 @@ class DriftingClock(object):
         self.ntp_offset = 0
 
     def get_time(self):
-        monotonic_current = time.monotonic_ns()//1000000
+        perf_counter_current = perf_counter_ns()//1000000
         return (self.wall_start + self.ntp_offset + 
-            int(self.drift*(monotonic_current - self.monotonic_start)))
+            int(self.drift*(perf_counter_current - self.perf_counter_start)))
 
     def ntp_sync(self):
         response = self.ntp_client.request(DriftingClock.NTP_HOSTNAME, version=3)
@@ -30,4 +30,4 @@ class DriftingClock(object):
 
     @staticmethod
     def format_time(ms_epoch):
-        return time.strftime("%H:%M:%S.", time.localtime(ms_epoch//1000)) + str(ms_epoch%1000)
+        return strftime("%H:%M:%S.", localtime(ms_epoch//1000)) + str(ms_epoch%1000)

@@ -50,8 +50,12 @@ class QueueCommunication(object):
                     message.destination = filter(lambda x: x != message.source, self.node_queues.keys())
                 for dest in message.destination:
                     delay = (5+lognormvariate(0.8, 0.5))/1000
-                    self.scheduler.schedule(delay, self.node_queues[dest].put, argument=(message,))
-                    #self.node_queues[dest].put(message) #no delay
+                    #treat case where destination does not exist
+                    try:
+                        self.scheduler.schedule(delay, self.node_queues[dest].put, argument=(message,))
+                        #self.node_queues[dest].put(message) #no delay
+                    except KeyError:
+                        pass
 
     def start(self):
         self.running = True

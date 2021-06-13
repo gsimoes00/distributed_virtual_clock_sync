@@ -1,3 +1,4 @@
+from agent import Agent
 from threading import Thread
 from sys import argv
 
@@ -56,8 +57,41 @@ class Test01(object):
 
         thread_list = []    
         for _ in range(num_clocks):
-            channel = comm.register()
-            thread = Thread(target=Test01.test01_thread, args=(channel,))
+            thread = Thread(target=Test01.test01_thread, args=(comm.register(),))
+            thread_list.append(thread)
+            thread.start()
+
+        sch.start()
+        comm.start()
+
+        for thread in thread_list:
+            thread.join()
+
+        comm.stop()
+        sch.stop()
+
+class Test02(object):
+
+    @staticmethod
+    def test02_thread(comm, sch):
+        agent = Agent(comm, sch)
+        agent.start()
+
+    @staticmethod
+    def run():
+
+        sch = EventScheduler()
+        comm = QueueCommunication(sch)
+
+        num_agents = 2
+        if len(argv) > 1:
+            num_agents = int(argv[1])
+            if num_agents < 2:
+                num_agents = 2
+
+        thread_list = []    
+        for _ in range(num_agents):
+            thread = Thread(target=Test02.test02_thread, args=(comm.register(), sch))
             thread_list.append(thread)
             thread.start()
 

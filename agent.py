@@ -164,7 +164,7 @@ class Agent(object):
         
         offset = self.clock.ntp_fetch()
         print('Coordinator measured NTP offset as %+d.' % offset)
-        if offset > 50:
+        if offset > self.ntp_threshold:
             print('NTP offset is too high. Coordinator is sending synchronizing order.')
             before = self.clock.get_time_ms()
             self.clock.offset += offset

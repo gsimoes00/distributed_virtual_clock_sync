@@ -25,7 +25,9 @@ class DriftingClock(object):
             int(self.drift*(perf_counter_current - self.perf_counter_start)))
 
     def ntp_sync(self):
-        self.offset += self.ntp_fetch()
+        offset = self.ntp_fetch()
+        self.offset += offset
+        return offset
 
     def ntp_fetch(self):
         response = self.ntp_client.request(DriftingClock.NTP_HOSTNAME, version=3)

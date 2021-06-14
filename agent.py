@@ -5,7 +5,7 @@ from random import random
 
 class Agent(object):
     
-    def __init__(self, channel, scheduler, magnitude=10**(-5), drift=None):
+    def __init__(self, channel, scheduler, magnitude=10**(-5), drift=None, ntp_threshold_ms=50):
         
         self.clock = DriftingClock(magnitude, drift)
         self.channel = channel
@@ -15,6 +15,8 @@ class Agent(object):
         self.participant = False
         self.elected = None
         self.polling_cycle = 0
+        self.ntp_reading = 0
+        self.ntp_threshold = ntp_threshold_ms
 
     def ring_formation(self):
 
@@ -139,16 +141,17 @@ class Agent(object):
 
         self.polling_cycle += 1
 
-        return self.clock.get_time_ms() - time_start
-
     def coordinator_ntp_task(self):
         
-        task_start = self.clock.get_time_ms()
-
-        pass
-
-        self.scheduler.schedule_ms(self.clock.drifted_ms(1000) - (self.clock.get_time_ms() - task_start), self.coordinator_ntp_task, argument=())
-
+        offset = self.clock.ntp_fetch()
+        print('Coordinator measured NTP offset as %+d.' % offset)
+        if offset > 50:
+            print('NTP offset is too high. Coordinator is sending synchronizing order.')
+            before = self.clock.get_time_ms()
+            self.clock.offset += offset
+            after = self.clock.get_time_ms()
+            print('Coordinator synchronized with NTP %+d: %s --> %s.' % (offset, DriftingClock.format_time_ms(before), DriftingClock.format_time_ms(after)))
+            self.channel.send(Message(self.channel.id, [], self.clock.get_time_ms(), 'ntp_sync', None))
 
     def subordinate_loop(self):
         
@@ -156,7 +159,7 @@ class Agent(object):
 
             message = self.channel.receive()
             
-            if message.source == self.elected:
+            if message and message.source == self.elected:
 
                 if message.message_type == 'time_polling':
                     self.channel.send(Message(self.channel.id, [self.elected], self.clock.get_time_ms(), 'time_polling', self.polling_cycle))
@@ -168,19 +171,34 @@ class Agent(object):
                     after = self.clock.get_time_ms()
                     print('Agent %d adjusted with offset %+d: %s --> %s.' % (self.channel.id, message.content, DriftingClock.format_time_ms(before), DriftingClock.format_time_ms(after)))
 
-    def coordinator_loop(self):
+                elif message.message_type == 'ntp_sync':
+                    before = self.clock.get_time_ms()
+                    self.clock.ntp_sync()
+                    after = self.clock.get_time_ms()
+                    print('Agent %d synchronized with NTP %+d: %s --> %s.' % (self.channel.id, self.ntp_reading, DriftingClock.format_time_ms(before), DriftingClock.format_time_ms(after)))
 
+    def coordinator_loop(self):
+        
+        ntp_task_counter = 0
         while True:
-            
-            time_used = 0
-            time_used += self.coordinator_polling_task()
-            self.clock.sleep_ms(500 - time_used)
+            time_start = self.clock.get_time_ms()
+
+            if ntp_task_counter >= 10:
+                self.coordinator_ntp_task()
+                ntp_task_counter = 0
+            else:
+                self.coordinator_polling_task()
+
+            ntp_task_counter += 1
+            self.clock.sleep_ms(500 - (self.clock.get_time_ms() - time_start))
     
     def start(self):
         
+        before = self.clock.get_time_ms()
         #remove this when not testing
-        #self.clock.ntp_sync()
-        print('Agent %d synchronized with NTP: %s.' % (self.channel.id, DriftingClock.format_time_ms(self.clock.get_time_ms())))
+        self.ntp_reading = self.clock.ntp_sync()
+        after = self.clock.get_time_ms()
+        print('Agent %d synchronized with NTP %+d: %s --> %s.' % (self.channel.id, self.ntp_reading, DriftingClock.format_time_ms(before), DriftingClock.format_time_ms(after)))
 
         self.ring_formation()
         

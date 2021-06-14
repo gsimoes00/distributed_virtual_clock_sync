@@ -43,8 +43,8 @@ class Agent(object):
                 elif message.message_type == 'ping' and message.content == 1:
                     received_ack = True
                     self.next_in_ring = message.source
-            else:
-                self.channel.send(Message(self.channel.id, [1], self.clock.get_time_ms(), 'ping', 0))
+            elif self.channel.id != 1 and not received_ack:
+                    self.channel.send(Message(self.channel.id, [1], self.clock.get_time_ms(), 'ping', 0))
         
         print('Agent %d is part of the ring with %d as its successor.' % (self.channel.id, self.next_in_ring))
 

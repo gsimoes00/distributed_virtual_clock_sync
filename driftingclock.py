@@ -25,8 +25,14 @@ class DriftingClock(object):
             int(self.drift*(perf_counter_current - self.perf_counter_start)))
 
     def ntp_sync(self):
+        self.offset += self.ntp_fetch()
+
+    def ntp_fetch(self):
         response = self.ntp_client.request(DriftingClock.NTP_HOSTNAME, version=3)
-        self.offset = int(response.offset*1000)
+        time_self = self.get_time_ms()
+        correct_time = int((response.dest_time + response.offset)*1000)
+        offset = (correct_time - time_self)
+        return offset
 
     def sleep_ms(self, duration):
         sleep((duration/self.drift)/1000)

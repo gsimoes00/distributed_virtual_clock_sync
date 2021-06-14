@@ -1,3 +1,4 @@
+from message import Message
 from threading import Lock, Thread
 from queue import Empty, Queue
 from random import lognormvariate
@@ -60,10 +61,20 @@ class QueueCommunication(object):
                     except KeyError:
                         pass
 
+    def issue_terminate_order(self):
+        terminate_message = Message(0, [], None, 'terminate', None)
+        destination = self.node_queues.keys()
+        print('Issuing termination order to all communication nodes.')
+        for dest in destination:
+            delay = (5+lognormvariate(0.8, 0.5))
+            self.scheduler.schedule_ms(delay, self.node_queues[dest].put, argument=(terminate_message,)) #with delay
+
     def start(self):
         self.running = True
         self.thread.start()
+        print('Communication started.')
 
     def stop(self):
         self.running = False
         self.queue_in.put(None)
+        print('Communication stopped.')

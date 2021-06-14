@@ -23,7 +23,9 @@ class EventScheduler(object):
     def start(self):
         self.running = True
         self.thread.start()
+        print('Event Scheduler started.')
 
     def stop(self):
         self.running = False
         self.wake_handle.set()
+        print('Event Scheduler stopped.')

@@ -5,11 +5,10 @@ from random import random
 
 class Agent(object):
     
-    def __init__(self, channel, scheduler, magnitude=10**(-5), drift=None, ntp_threshold_ms=50):
+    def __init__(self, channel, magnitude=10**(-5), drift=None, ntp_threshold_ms=50):
         
         self.clock = DriftingClock(magnitude, drift)
         self.channel = channel
-        self.scheduler = scheduler
         self.next_in_ring = None
         self.ring_size = None
         self.participant = False
@@ -17,6 +16,14 @@ class Agent(object):
         self.polling_cycle = 0
         self.ntp_reading = 0
         self.ntp_threshold = ntp_threshold_ms
+        self.terminate = False
+
+    def receive_wrapper(self, timeout_ms=None):
+        message = self.channel.receive(timeout_ms=timeout_ms)
+        if message and message.message_type == 'terminate':
+            self.terminate = True
+            print('Agent %d received order to terminate.' % (self.channel.id))
+        return message
 
     def ring_formation(self):
 
@@ -26,8 +33,10 @@ class Agent(object):
         self.channel.send(Message(self.channel.id, [self.channel.id+1], self.clock.get_time_ms(), 'ping', 0))
 
         while not (received_ping and received_ack):
-            message = self.channel.receive(self.clock.drifted_ms(100))
-            if message:
+            message = self.receive_wrapper(self.clock.drifted_ms(100))
+            if self.terminate:
+                return
+            elif message:
                 if message.message_type == 'ping' and message.content == 0:
                     received_ping = True
                     self.channel.send(Message(self.channel.id, [message.source], self.clock.get_time_ms(), 'ping', 1))
@@ -45,7 +54,9 @@ class Agent(object):
             self.ring_size = self.channel.id
         else:
             while not self.ring_size:
-                message = self.channel.receive()
+                message = self.receive_wrapper()
+                if self.terminate:
+                    return
                 if message.message_type == 'ring_size':
                     self.ring_size = message.content
 
@@ -64,7 +75,10 @@ class Agent(object):
                 can_propose_randomly = False
                 print('Agent %d randomly proposed to be coordinator.' % (self.channel.id))
  
-            message = self.channel.receive(self.clock.drifted_ms(30))
+            message = self.receive_wrapper(self.clock.drifted_ms(30))
+        
+        if self.terminate:
+            return
 
         #print('Agent %d received a message.\n%s' % (self.channel.id, str(message.__dict__)))
 
@@ -97,7 +111,9 @@ class Agent(object):
                     print('Agent %d recognizes itself as coordinator.' % self.channel.id)
 
             if not (self.participant == False and self.elected != None):
-                message = self.channel.receive() 
+                message = self.receive_wrapper()
+                if self.terminate:
+                    return
         
         self.clock.sleep_ms(100)
 
@@ -112,11 +128,14 @@ class Agent(object):
         default_wait = self.clock.drifted_ms(20)
         wait = default_wait
         while wait > 0:
-            message = self.channel.receive(wait)
+            message = self.receive_wrapper(wait)
             if message and message.message_type == 'time_polling' and message.content == self.polling_cycle:
                 received_list.append([message.source, message.timestamp, self.clock.get_time_ms()])
 
             wait = default_wait - (self.clock.get_time_ms() - time_start)
+
+        if self.terminate:
+            return
 
         sum = time_start #coordinator
         amount = len(received_list)+1
@@ -155,9 +174,11 @@ class Agent(object):
 
     def subordinate_loop(self):
         
-        while True:
+        while not self.terminate:
 
-            message = self.channel.receive()
+            message = self.receive_wrapper()
+            if self.terminate:
+                return
             
             if message and message.source == self.elected:
 
@@ -180,7 +201,7 @@ class Agent(object):
     def coordinator_loop(self):
         
         ntp_task_counter = 0
-        while True:
+        while not self.terminate:
             time_start = self.clock.get_time_ms()
 
             if ntp_task_counter >= 10:
@@ -196,13 +217,22 @@ class Agent(object):
         
         before = self.clock.get_time_ms()
         #remove this when not testing
-        self.ntp_reading = self.clock.ntp_sync()
+        #self.ntp_reading = self.clock.ntp_sync()
         after = self.clock.get_time_ms()
         print('Agent %d synchronized with NTP %+d: %s --> %s.' % (self.channel.id, self.ntp_reading, DriftingClock.format_time_ms(before), DriftingClock.format_time_ms(after)))
 
+        if self.terminate:
+            return
+
         self.ring_formation()
+
+        if self.terminate:
+            return
         
         self.ring_election()
+
+        if self.terminate:
+            return
 
         if self.elected == self.channel.id:
             self.coordinator_loop()

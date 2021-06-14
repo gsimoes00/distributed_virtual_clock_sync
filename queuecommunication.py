@@ -12,11 +12,11 @@ class QueueChannel(object):
     def send(self, message):
         self.send_queue.put(message)
 
-    def receive(self, timeout=None):
+    def receive(self, timeout_ms=None):
         try:
-            if timeout:
-                timeout /= 1000
-            message = self.receive_queue.get(timeout=timeout)
+            if timeout_ms:
+                timeout_ms /= 1000
+            message = self.receive_queue.get(timeout=timeout_ms)
         except Empty:
             message = None
         return message
@@ -52,10 +52,10 @@ class QueueCommunication(object):
                     message.destination = filter(lambda x: x != message.source, self.node_queues.keys()) #exclude sender
                     #message.destination = self.node_queues.keys() #include sender
                 for dest in message.destination:
-                    delay = (5+lognormvariate(0.8, 0.5))/1000
+                    delay = (5+lognormvariate(0.8, 0.5))
                     #treat case where destination does not exist
                     try:
-                        self.scheduler.schedule(delay, self.node_queues[dest].put, argument=(message,)) #with delay
+                        self.scheduler.schedule_ms(delay, self.node_queues[dest].put, argument=(message,)) #with delay
                         #self.node_queues[dest].put(message) #without delay
                     except KeyError:
                         pass

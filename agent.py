@@ -5,7 +5,7 @@ from random import random
 
 class Agent(object):
     
-    def __init__(self, channel, scheduler, magnitude=10**(-3), drift=None):
+    def __init__(self, channel, scheduler, magnitude=10**(-5), drift=None):
         
         self.clock = DriftingClock(magnitude, drift)
         self.channel = channel
@@ -14,6 +14,7 @@ class Agent(object):
         self.ring_size = None
         self.participant = False
         self.elected = None
+        self.polling_cycle = 0
 
     def ring_formation(self):
 
@@ -23,7 +24,7 @@ class Agent(object):
         self.channel.send(Message(self.channel.id, [self.channel.id+1], self.clock.get_time_ms(), 'ping', 0))
 
         while not (received_ping and received_ack):
-            message = self.channel.receive(self.clock.drifted_time_ms(100))
+            message = self.channel.receive(self.clock.drifted_ms(100))
             if message:
                 if message.message_type == 'ping' and message.content == 0:
                     received_ping = True
@@ -61,7 +62,7 @@ class Agent(object):
                 can_propose_randomly = False
                 print('Agent %d randomly proposed to be coordinator.' % (self.channel.id))
  
-            message = self.channel.receive(self.clock.drifted_time_ms(30))
+            message = self.channel.receive(self.clock.drifted_ms(30))
 
         #print('Agent %d received a message.\n%s' % (self.channel.id, str(message.__dict__)))
 
@@ -94,15 +95,51 @@ class Agent(object):
                     print('Agent %d recognizes itself as coordinator.' % self.channel.id)
 
             if not (self.participant == False and self.elected != None):
-                message = self.channel.receive()
+                message = self.channel.receive() 
+        
+        self.clock.sleep_ms(100)
 
     def coordinator_polling_task(self):
         
-        task_start = self.clock.get_time_ms()
+        print("Coordinator will start polling for synchronization round %d." % self.polling_cycle)
+        time_start = self.clock.get_time_ms()
+        self.channel.send(Message(self.channel.id, [], self.clock.get_time_ms(), 'time_polling', self.polling_cycle))
 
-        pass
+        received_list = []
 
-        self.scheduler.schedule(self.clock.drifted_time_ms(250) - (self.clock.get_time_ms() - task_start), self.coordinator_polling_task, argument=())
+        default_wait = self.clock.drifted_ms(20)
+        wait = default_wait
+        while wait > 0:
+            message = self.channel.receive(wait)
+            if message and message.message_type == 'time_polling' and message.content == self.polling_cycle:
+                received_list.append([message.source, message.timestamp, self.clock.get_time_ms()])
+
+            wait = default_wait - (self.clock.get_time_ms() - time_start)
+
+        sum = time_start #coordinator
+        amount = len(received_list)+1
+        for i in range(len(received_list)):
+            rtt_2 = (received_list[i][2] - time_start)/2 #RTT/2
+            estimated_time = received_list[i][1] - rtt_2 #subordinate
+            received_list[i].append(estimated_time)
+            sum += estimated_time
+        mean = int(sum/amount)
+        print('Coordinator received %d responses with mean: %s.' % (amount, DriftingClock.format_time_ms(mean)))
+
+        coordinator_offset = int(mean - time_start)
+        #print(coordinator_offset)
+        before = self.clock.get_time_ms()
+        self.clock.offset += coordinator_offset
+        after = self.clock.get_time_ms()
+        print('Coordinator adjusted with offset %+d: %s --> %s.' % (coordinator_offset, DriftingClock.format_time_ms(before), DriftingClock.format_time_ms(after)))
+        for element in received_list:
+            offset = int(mean - element[3])
+            #print(offset)
+            self.channel.send(Message(self.channel.id, [element[0]], self.clock.get_time_ms(), 'offset', offset))
+
+        self.polling_cycle += 1
+
+        return self.clock.get_time_ms() - time_start
 
     def coordinator_ntp_task(self):
         
@@ -110,12 +147,35 @@ class Agent(object):
 
         pass
 
-        self.scheduler.schedule(self.clock.drifted_time_ms(1000) - (self.clock.get_time_ms() - task_start), self.coordinator_ntp_task, argument=())
+        self.scheduler.schedule_ms(self.clock.drifted_ms(1000) - (self.clock.get_time_ms() - task_start), self.coordinator_ntp_task, argument=())
 
 
     def subordinate_loop(self):
-        pass
+        
+        while True:
 
+            message = self.channel.receive()
+            
+            if message.source == self.elected:
+
+                if message.message_type == 'time_polling':
+                    self.channel.send(Message(self.channel.id, [self.elected], self.clock.get_time_ms(), 'time_polling', self.polling_cycle))
+                    self.polling_cycle += 1
+                
+                elif message.message_type == 'offset':
+                    before = self.clock.get_time_ms()
+                    self.clock.offset += message.content
+                    after = self.clock.get_time_ms()
+                    print('Agent %d adjusted with offset %+d: %s --> %s.' % (self.channel.id, message.content, DriftingClock.format_time_ms(before), DriftingClock.format_time_ms(after)))
+
+    def coordinator_loop(self):
+
+        while True:
+            
+            time_used = 0
+            time_used += self.coordinator_polling_task()
+            self.clock.sleep_ms(500 - time_used)
+    
     def start(self):
         
         #remove this when not testing
@@ -126,9 +186,9 @@ class Agent(object):
         
         self.ring_election()
 
-        #if self.elected == self.channel.id:
-            #self.scheduler.schedule(250, self.coordinator_polling_task, argument=())
-            #self.scheduler.schedule(1000, self.coordinator_ntp_task, argument=())
-        #else:
-            #self.subordinate_loop()
+        if self.elected == self.channel.id:
+            self.coordinator_loop()
+
+        else:
+            self.subordinate_loop()
         

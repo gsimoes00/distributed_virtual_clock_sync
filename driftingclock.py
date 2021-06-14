@@ -6,7 +6,7 @@ class DriftingClock(object):
 
     NTP_HOSTNAME = 'gps.ntp.br'
 
-    def __init__(self, magnitude=10**(-3), drift=None):
+    def __init__(self, magnitude=10**(-5), drift=None):
         wall_start = time_ns()
         while time_ns() == wall_start:
             pass
@@ -17,22 +17,25 @@ class DriftingClock(object):
         else:
             self.drift = 1 + (choice((-1, 1)))*betavariate(10, 2)*magnitude
         self.ntp_client = NTPClient()
-        self.ntp_offset = 0
+        self.offset = 0
 
     def get_time_ms(self):
         perf_counter_current = perf_counter_ns()//1000000
-        return (self.wall_start + self.ntp_offset + 
+        return (self.wall_start + self.offset + 
             int(self.drift*(perf_counter_current - self.perf_counter_start)))
 
     def ntp_sync(self):
         response = self.ntp_client.request(DriftingClock.NTP_HOSTNAME, version=3)
-        self.ntp_offset = int(response.offset*1000)
+        self.offset = int(response.offset*1000)
 
     def sleep_ms(self, duration):
         sleep((duration/self.drift)/1000)
 
-    def drifted_time_ms(self, duration):
-        return duration/self.drift
+    def drifted_ms(self, duration):
+        return int(duration/self.drift)
+
+    def drifted_ms_to_s(self, duration):
+        return (duration/self.drift)/1000
 
     @staticmethod
     def format_time_ms(ms_epoch):

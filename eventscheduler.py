@@ -10,8 +10,8 @@ class EventScheduler(object):
         self.thread = Thread(target=self.loop, args=())
         self.running = False
 
-    def schedule(self, delay, action, argument=(), kwargs={}):
-        self.scheduler.enter(delay, 1, action, argument, kwargs)
+    def schedule_ms(self, delay, action, argument=(), kwargs={}):
+        self.scheduler.enter(delay/1000, 1, action, argument, kwargs)
         self.wake_handle.set()
 
     def loop(self):

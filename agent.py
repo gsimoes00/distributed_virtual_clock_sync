@@ -217,7 +217,7 @@ class Agent(object):
         
         before = self.clock.get_time_ms()
         #remove this when not testing
-        #self.ntp_reading = self.clock.ntp_sync()
+        self.ntp_reading = self.clock.ntp_sync()
         after = self.clock.get_time_ms()
         print('Agent %d synchronized with NTP %+d: %s --> %s.' % (self.channel.id, self.ntp_reading, DriftingClock.format_time_ms(before), DriftingClock.format_time_ms(after)))
 

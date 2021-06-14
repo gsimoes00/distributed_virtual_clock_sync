@@ -85,7 +85,7 @@ if __name__ == '__main__':
 
             sim.start()
 
-            sleep(60)
+            sleep(sim.sim_time)
 
             sim.stop()
 
